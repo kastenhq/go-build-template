@@ -3,12 +3,12 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/thockin/go-build-template/pkg/myapp"
+	"github.com/thockin/go-build-template/pkg/shops"
 )
 
 func Root() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "myapp",
+		Use:   "shops",
 		Short: "TODO",
 		Long: `TODO
 TODO
@@ -21,5 +21,5 @@ TODO`,
 
 func rootRun(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-	return myapp.Foo(cmd.Context())
+	return shops.Foo(cmd.Context())
 }

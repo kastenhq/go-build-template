@@ -1,21 +1,25 @@
-package myapp
+package shops
 
 import (
 	"context"
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/v23/github"
+	"github.com/google/go-github/v32/github"
 	"golang.org/x/oauth2"
 )
 
-func Foo(ctx context.Context) error {
+func Shops(ctx context.Context) error {
+	gc, err := newGithubClient(ctx)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 const tokenEnvVar = `GITHUB_TOKEN`
 
-func newClient(ctx context.Context) (*github.Client, error) {
+func newGithubClient(ctx context.Context) (*github.Client, error) {
 	token, ok := os.LookupEnv(tokenEnvVar)
 	if !ok {
 		return nil, fmt.Errorf("please set $%s", tokenEnvVar)
