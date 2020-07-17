@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # The binaries to build (just the basenames).
-BINS := myapp-1 myapp-2
+BINS := myapp
 
 # This version-strategy uses git tags to set the version string
 VERSION ?= $(shell git describe --tags --always --dirty)
