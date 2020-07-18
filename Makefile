@@ -13,10 +13,7 @@
 # limitations under the License.
 
 # The binaries to build (just the basenames).
-BINS := myapp-1 myapp-2
-
-# Where to push the docker image.
-REGISTRY ?= example.com
+BINS := pwxdemo
 
 # This version-strategy uses git tags to set the version string
 VERSION ?= $(shell git describe --tags --always --dirty)
@@ -30,53 +27,13 @@ VERSION ?= $(shell git describe --tags --always --dirty)
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
-ALL_PLATFORMS := linux/amd64 linux/arm linux/arm64 linux/ppc64le linux/s390x
-
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-BASEIMAGE ?= gcr.io/distroless/static
-
 TAG := $(VERSION)__$(OS)_$(ARCH)
 
 BUILD_IMAGE ?= golang:1.14-alpine
-
-# If you want to build all binaries, see the 'all-build' rule.
-# If you want to build all containers, see the 'all-container' rule.
-# If you want to build AND push all containers, see the 'all-push' rule.
-all: # @HELP builds binaries for one platform ($OS/$ARCH)
-all: build
-
-# For the following OS/ARCH expansions, we transform OS/ARCH into OS_ARCH
-# because make pattern rules don't match with embedded '/' characters.
-
-build-%:
-	@$(MAKE) build                        \
-	    --no-print-directory              \
-	    GOOS=$(firstword $(subst _, ,$*)) \
-	    GOARCH=$(lastword $(subst _, ,$*))
-
-container-%:
-	@$(MAKE) container                    \
-	    --no-print-directory              \
-	    GOOS=$(firstword $(subst _, ,$*)) \
-	    GOARCH=$(lastword $(subst _, ,$*))
-
-push-%:
-	@$(MAKE) push                         \
-	    --no-print-directory              \
-	    GOOS=$(firstword $(subst _, ,$*)) \
-	    GOARCH=$(lastword $(subst _, ,$*))
-
-all-build: # @HELP builds binaries for all platforms
-all-build: $(addprefix build-, $(subst /,_, $(ALL_PLATFORMS)))
-
-all-container: # @HELP builds containers for all platforms
-all-container: $(addprefix container-, $(subst /,_, $(ALL_PLATFORMS)))
-
-all-push: # @HELP pushes containers for all platforms to the defined registry
-all-push: $(addprefix push-, $(subst /,_, $(ALL_PLATFORMS)))
 
 build: $(foreach bin,$(BINS),bin/$(OS)_$(ARCH)/$(bin))
 
@@ -153,53 +110,6 @@ shell: $(BUILD_DIRS)
 	    $(BUILD_IMAGE)                                          \
 	    /bin/sh $(CMD)
 
-CONTAINER_DOTFILES = $(foreach bin,$(BINS),.container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG))
-
-container containers: # @HELP builds containers for one platform ($OS/$ARCH)
-container containers: $(CONTAINER_DOTFILES)
-	@for bin in $(BINS); do              \
-	    echo "container: $(REGISTRY)/$$bin:$(TAG)"; \
-	done
-
-# Each container-dotfile target can reference a $(BIN) variable.
-# This is done in 2 steps to enable target-specific variables.
-$(foreach bin,$(BINS),$(eval $(strip                                 \
-    .container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG): BIN = $(bin)  \
-)))
-$(foreach bin,$(BINS),$(eval                                                                   \
-    .container-$(subst /,_,$(REGISTRY)/$(bin))-$(TAG): bin/$(OS)_$(ARCH)/$(bin) Dockerfile.in  \
-))
-# This is the target definition for all container-dotfiles.
-# These are used to track build state in hidden files.
-$(CONTAINER_DOTFILES):
-	@sed                                 \
-	    -e 's|{ARG_BIN}|$(BIN)|g'        \
-	    -e 's|{ARG_ARCH}|$(ARCH)|g'      \
-	    -e 's|{ARG_OS}|$(OS)|g'          \
-	    -e 's|{ARG_FROM}|$(BASEIMAGE)|g' \
-	    Dockerfile.in > .dockerfile-$(BIN)-$(OS)_$(ARCH)
-	@docker build -t $(REGISTRY)/$(BIN):$(TAG) -f .dockerfile-$(BIN)-$(OS)_$(ARCH) .
-	@docker images -q $(REGISTRY)/$(BIN):$(TAG) > $@
-	@echo
-
-push: # @HELP pushes the container for one platform ($OS/$ARCH) to the defined registry
-push: $(CONTAINER_DOTFILES)
-	@for bin in $(BINS); do                    \
-	    docker push $(REGISTRY)/$$bin:$(TAG);  \
-	done
-
-manifest-list: # @HELP builds a manifest list of containers for all platforms
-manifest-list: all-push
-	@for bin in $(BINS); do                                   \
-	    platforms=$$(echo $(ALL_PLATFORMS) | sed 's/ /,/g');  \
-	    manifest-tool                                         \
-	        --username=oauth2accesstoken                      \
-	        --password=$$(gcloud auth print-access-token)     \
-	        push from-args                                    \
-	        --platforms "$$platforms"                         \
-	        --template $(REGISTRY)/$$bin:$(VERSION)__OS_ARCH  \
-	        --target $(REGISTRY)/$$bin:$(VERSION)
-
 version: # @HELP outputs the version string
 version:
 	@echo $(VERSION)
@@ -229,10 +139,6 @@ $(BUILD_DIRS):
 	@mkdir -p $@
 
 clean: # @HELP removes built binaries and temporary files
-clean: container-clean bin-clean
-
-container-clean:
-	rm -rf .container-* .dockerfile-*
 
 bin-clean:
 	rm -rf .go bin
@@ -243,7 +149,6 @@ help:
 	@echo "  BINS = $(BINS)"
 	@echo "  OS = $(OS)"
 	@echo "  ARCH = $(ARCH)"
-	@echo "  REGISTRY = $(REGISTRY)"
 	@echo
 	@echo "TARGETS:"
 	@grep -E '^.*: *# *@HELP' $(MAKEFILE_LIST)    \
