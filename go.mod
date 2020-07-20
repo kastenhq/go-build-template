@@ -3,6 +3,7 @@ module github.com/thockin/go-build-template
 go 1.14
 
 require (
+	github.com/PeoplePerHour/go-shippable v0.0.0-20151027190105-7d93375ea4be
 	github.com/google/go-github/v23 v23.0.0 // indirect
 	github.com/google/go-github/v32 v32.0.0
 	github.com/spf13/cobra v1.0.0

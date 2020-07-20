@@ -21,5 +21,5 @@ TODO`,
 
 func rootRun(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-	return shops.Foo(cmd.Context())
+	return shops.Shops(cmd.Context())
 }
